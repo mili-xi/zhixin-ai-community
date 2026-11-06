@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智心AI Desktop</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body, .frame-wrap { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+      body { background: #fff; }
+      iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+      button { font: inherit; }
+      .toast {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        max-width: min(520px, calc(100vw - 32px));
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
+        padding: 12px 14px;
+        color: #b42318;
+        font: 12px/1.6 Inter, "Microsoft YaHei", system-ui, sans-serif;
+      }
+      .update-banner {
+        position: absolute;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        width: min(680px, calc(100vw - 32px));
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+        color: #0f172a;
+        font: 13px/1.55 Inter, "Microsoft YaHei", system-ui, sans-serif;
+        padding: 14px;
+      }
+      .update-banner__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .update-banner__title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .update-banner__meta {
+        color: #64748b;
+        font-size: 12px;
+      }
+      .update-banner__notes {
+        margin: 0 0 12px;
+        padding-left: 18px;
+        color: #334155;
+      }
+      .update-banner__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .update-banner__button {
+        height: 32px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #fff;
+        color: #334155;
+        cursor: pointer;
+        padding: 0 12px;
+      }
+      .update-banner__button:hover { background: #f8fafc; }
+      .update-banner__button--primary {
+        border-color: #2563eb;
+        background: #2563eb;
+        color: #fff;
+      }
+      .update-banner__button--primary:hover { background: #1d4ed8; }
+      .toast[hidden], .update-banner[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <main class="frame-wrap">
+      <iframe
+        id="web-frame"
+        title="智心AI 工作台"
+        src="http://127.0.0.1:3001/dashboard?desktop=1"
+        allow="clipboard-read; clipboard-write"
+      ></iframe>
+      <section id="update-banner" class="update-banner" role="status" hidden>
+        <div class="update-banner__header">
+          <div>
+            <p id="update-title" class="update-banner__title">发现新版本</p>
+            <div id="update-meta" class="update-banner__meta"></div>
+          </div>
+        </div>
+        <ul id="update-notes" class="update-banner__notes"></ul>
+        <div class="update-banner__actions">
+          <button id="update-dismiss" class="update-banner__button" type="button">稍后</button>
+          <button id="update-download" class="update-banner__button update-banner__button--primary" type="button">立即更新</button>
+        </div>
+      </section>
+      <div id="toast" class="toast" role="alert" hidden></div>
+    </main>
+
+    <script>
+      const WEB_ORIGIN = "http://127.0.0.1:3001";
+      const UPDATE_MANIFEST_URLS = [
+        `${WEB_ORIGIN}/downloads/desktop-version.json`
+      ];
+      const frame = document.querySelector("#web-frame");
+      const toast = document.querySelector("#toast");
+      const updateBanner = document.querySelector("#update-banner");
+      const updateTitle = document.querySelector("#update-title");
+      const updateMeta = document.querySelector("#update-meta");
+      const updateNotes = document.querySelector("#update-notes");
+      const updateDismiss = document.querySelector("#update-dismiss");
+      const updateDownload = document.querySelector("#update-download");
+      const globalInvoke = window.__TAURI__?.tauri?.invoke || window.__TAURI__?.core?.invoke || window.__TAURI__?.invoke;
+      const legacyShellOpen = window.__TAURI__?.shell && window.__TAURI__.shell.open;
+      const shellOpen = legacyShellOpen || window.__TAURI__?.opener?.openUrl;
+      let latestDesktopRelease = null;
+
+      function showError(message) {
+        toast.textContent = message;
+        toast.hidden = false;
+        window.clearTimeout(showError.timer);
+        showError.timer = window.setTimeout(() => {
+          toast.hidden = true;
+        }, 6000);
+      }
+
+      function ipcInvoke(commandName, argsPayload = {}) {
+        if (globalInvoke) return globalInvoke(commandName, argsPayload);
+        if (!window.__TAURI_IPC__) return Promise.reject(new Error("TAURI_IPC_UNAVAILABLE"));
+        return new Promise((resolve, reject) => {
+          const callback = `_${window.crypto.getRandomValues(new Uint32Array(1))[0]}`;
+          const error = `_${window.crypto.getRandomValues(new Uint32Array(1))[0]}`;
+          Object.defineProperty(window, callback, {
+            value: (result) => {
+              Reflect.deleteProperty(window, callback);
+              Reflect.deleteProperty(window, error);
+              resolve(result);
+            },
+            configurable: true
+          });
+          Object.defineProperty(window, error, {
+            value: (message) => {
+              Reflect.deleteProperty(window, callback);
+              Reflect.deleteProperty(window, error);
+              reject(new Error(String(message)));
+            },
+            configurable: true
+          });
+          window.__TAURI_IPC__({ cmd: commandName, callback, error, ...argsPayload });
+        });
+      }
+
+      function parseJsonMaybe(value) {
+        if (typeof value !== "string") return value;
+        try { return JSON.parse(value); } catch { return value; }
+      }
+
+      function compareSemver(left, right) {
+        const normalize = (value) => String(value || "0.0.0")
+          .split(/[+-]/)[0]
+          .split(".")
+          .map((part) => Number.parseInt(part, 10) || 0);
+        const leftParts = normalize(left);
+        const rightParts = normalize(right);
+        for (let index = 0; index < 3; index += 1) {
+          if (leftParts[index] > rightParts[index]) return 1;
+          if (leftParts[index] < rightParts[index]) return -1;
+        }
+        return 0;
+      }
+
+      function uniqueUrls(values) {
+        const urls = [];
+        for (const value of values) {
+          const url = String(value || "").trim();
+          if (!url || urls.includes(url)) continue;
+          urls.push(url);
+        }
+        return urls;
+      }
+
+      function installerUrlForManifest(manifestUrl) {
+        try {
+          const url = new URL(manifestUrl);
+          url.pathname = "/downloads/zhixin-ai-windows.exe";
+          url.search = "";
+          url.hash = "";
+          return url.toString();
+        } catch {
+          return "";
+        }
+      }
+
+      function sameOrigin(left, right) {
+        try {
+          return new URL(left).origin === new URL(right).origin;
+        } catch {
+          return false;
+        }
+      }
+
+      function normalizeDesktopRelease(release, manifestUrl) {
+        const downloadUrls = uniqueUrls([
+          installerUrlForManifest(manifestUrl),
+          release?.downloadUrl,
+          ...(Array.isArray(release?.downloadUrls) ? release.downloadUrls : [])
+        ]);
+        const sameOriginDownload = downloadUrls.find((url) => sameOrigin(url, manifestUrl));
+        return {
+          ...release,
+          downloadUrl: sameOriginDownload || downloadUrls[0] || `${WEB_ORIGIN}/downloads/zhixin-ai-windows.exe`,
+          downloadUrls
+        };
+      }
+
+      async function fetchDesktopRelease() {
+        for (const manifestUrl of UPDATE_MANIFEST_URLS) {
+          try {
+            const response = await fetch(manifestUrl, { cache: "no-store", credentials: "omit" });
+            if (!response.ok) continue;
+            return normalizeDesktopRelease(await response.json(), manifestUrl);
+          } catch {
+            // Try the next release source; update checks must stay non-blocking.
+          }
+        }
+        return null;
+      }
+
+      async function currentDesktopVersion() {
+        try {
+          return String(parseJsonMaybe(await ipcInvoke("app_version")) || "0.0.0");
+        } catch {
+          return "0.0.0";
+        }
+      }
+
+      function renderUpdateNotes(notes) {
+        updateNotes.replaceChildren();
+        const items = Array.isArray(notes) ? notes.filter(Boolean).slice(0, 4) : [];
+        for (const note of items) {
+          const item = document.createElement("li");
+          item.textContent = String(note);
+          updateNotes.appendChild(item);
+        }
+        updateNotes.hidden = items.length === 0;
+      }
+
+      function showUpdateBanner(release, currentVersion) {
+        latestDesktopRelease = release;
+        updateTitle.textContent = `发现新版本 ${release.version}`;
+        updateMeta.textContent = `当前版本 ${currentVersion}，建议更新后再继续使用自动发布功能`;
+        renderUpdateNotes(release.notes);
+        updateBanner.hidden = false;
+      }
+
+      async function openDesktopDownload() {
+        const downloadUrl = latestDesktopRelease?.downloadUrl || `${WEB_ORIGIN}/downloads/zhixin-ai-windows.exe`;
+        if (shellOpen) {
+          await shellOpen(downloadUrl);
+          return;
+        }
+        window.open(downloadUrl, "_blank", "noopener");
+      }
+
+      async function checkForDesktopUpdate() {
+        try {
+          const currentVersion = await currentDesktopVersion();
+          const release = await fetchDesktopRelease();
+          if (!release?.version || !release?.downloadUrl) return;
+          if (compareSemver(release.version, currentVersion) <= 0) return;
+          const dismissedVersion = window.localStorage.getItem("zhixin.desktop.update.dismissed");
+          if (dismissedVersion === release.version) return;
+          showUpdateBanner(release, currentVersion);
+        } catch {
+          // Update checks must never interrupt writing or publishing work.
+        }
+      }
+
+      async function runAgent(command, args = [], detached = false) {
+        const commandName = detached ? "agent_command_detached" : "agent_command";
+        const raw = await ipcInvoke(commandName, { command, args });
+        return parseJsonMaybe(raw);
+      }
+
+      updateDismiss.addEventListener("click", () => {
+        if (latestDesktopRelease?.version) {
+          window.localStorage.setItem("zhixin.desktop.update.dismissed", latestDesktopRelease.version);
+        }
+        updateBanner.hidden = true;
+      });
+      updateDownload.addEventListener("click", async () => {
+        try {
+          await openDesktopDownload();
+        } catch (error) {
+          showError(error instanceof Error ? error.message : String(error));
+        }
+      });
+
+      window.addEventListener("message", async (event) => {
+        if (event.source !== frame.contentWindow || event.origin !== WEB_ORIGIN) return;
+        const request = event.data || {};
+        if (request.type !== "zhixin:agent-command") return;
+        const requestId = String(request.requestId || "");
+        try {
+          const result = await runAgent(
+            String(request.command || ""),
+            Array.isArray(request.args) ? request.args.map(String) : [],
+            Boolean(request.detached)
+          );
+          frame.contentWindow.postMessage({
+            type: "zhixin:agent-command-result",
+            requestId,
+            result
+          }, WEB_ORIGIN);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          frame.contentWindow.postMessage({
+            type: "zhixin:agent-command-error",
+            requestId,
+            error: message
+          }, WEB_ORIGIN);
+          showError(message);
+        }
+      });
+
+      checkForDesktopUpdate();
+      window.setInterval(checkForDesktopUpdate, 4 * 60 * 60 * 1000);
+    </script>
+  </body>
+</html>

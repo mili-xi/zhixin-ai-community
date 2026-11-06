@@ -1,0 +1,199 @@
+# Zhixin AI local stack
+# Usage:
+#   npm run dev:services   # postgres + redis only
+#   npm run dev:docker     # full stack (build + up)
+#   npm run verify:docker  # health smoke check
+#
+# Ports (override via env):
+#   API_PORT=8000 WEB_PORT=3001
+#
+# Secrets (DeepSeek / DataForSEO / Step) come from apps/api/.env
+
+name: zhixin-ai
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg://zhixin:zhixin@postgres:5432/zhixin_ai
+  REDIS_URL: redis://redis:6379/0
+  UPLOAD_DIR: /app/uploads
+  ZX_PRIVATE_VIDEO_DIR: /app/private-video-assets
+  PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+  KNOWLEDGE_FETCH_MODE: ${KNOWLEDGE_FETCH_MODE:-auto}
+  KNOWLEDGE_FETCH_STEALTH: ${KNOWLEDGE_FETCH_STEALTH:-true}
+  KNOWLEDGE_FETCH_TIMEOUT: ${KNOWLEDGE_FETCH_TIMEOUT:-30}
+  KNOWLEDGE_FETCH_STEALTH_TIMEOUT_MS: ${KNOWLEDGE_FETCH_STEALTH_TIMEOUT_MS:-45000}
+
+x-backend-build: &backend-build
+  context: .
+  dockerfile: apps/api/Dockerfile
+  args:
+    API_BASE_IMAGE: python:3.11-slim-bookworm
+
+x-backend-service: &backend-service
+  image: zhixin-ai-backend:local
+  build: *backend-build
+  env_file:
+    - path: ./apps/api/.env
+      required: false
+  environment:
+    <<: *backend-env
+  volumes:
+    - zhixin_uploads:/app/uploads
+    - zhixin_private_video_assets:/app/private-video-assets
+  networks:
+    - zhixin
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: zhixin-ai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zhixin_ai
+      POSTGRES_USER: zhixin
+      POSTGRES_PASSWORD: zhixin
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - zhixin_postgres_data:/var/lib/postgresql/data
+    networks:
+      - zhixin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zhixin -d zhixin_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: zhixin-ai-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - zhixin_redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - zhixin
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  api:
+    <<: *backend-service
+    container_name: zhixin-ai-api
+    environment:
+      <<: *backend-env
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  worker:
+    <<: *backend-service
+    container_name: zhixin-ai-worker
+    # Chromium (Scrapling StealthyFetcher) needs shared memory
+    shm_size: "1gb"
+    command:
+      [
+        "python",
+        "-m",
+        "app.worker_cli",
+        "--queues",
+        "default,publish,index,media,knowledge,seo,ai",
+        "--schedule",
+        "--schedule-interval",
+        "60",
+      ]
+    init: true
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "from app.queue import queue_client; from app.scraping import scrapling_status; import sys; h=queue_client.health(); s=scrapling_status(); sys.exit(0 if h.get(\"connected\") and s.get(\"available\") else 1)"',
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  web:
+    image: zhixin-ai-web:local
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        WEB_BASE_IMAGE: node:20-alpine
+        FASTAPI_BASE_URL: http://api:8000
+    container_name: zhixin-ai-web
+    restart: unless-stopped
+    environment:
+      FASTAPI_BASE_URL: http://api:8000
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-zhixin_session}
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    ports:
+      # Host default 3001 avoids clashing with local `next dev` on 3000
+      - "${WEB_PORT:-3001}:3000"
+    init: true
+    networks:
+      - zhixin
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://127.0.0.1:3000/dashboard',(r)=>process.exit(r.statusCode&&r.statusCode<500?0:1)).on('error',()=>process.exit(1))\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+networks:
+  zhixin:
+    name: zhixin-ai-net
+    driver: bridge
+
+volumes:
+  zhixin_private_video_assets:
+  # Reuse volumes originally created under the old project name "ai".
+  zhixin_postgres_data:
+    name: ai_zhixin_postgres_data
+    external: true
+  zhixin_redis_data:
+    name: ai_zhixin_redis_data
+    external: true
+  zhixin_uploads:
+    name: ai_zhixin_uploads
+    external: true

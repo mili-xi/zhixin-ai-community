@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.tauri.app/config/1",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "../ui/index.html",
+    "distDir": "../ui",
+    "withGlobalTauri": true
+  },
+  "package": {
+    "productName": "智心AI Desktop",
+    "version": "0.1.21"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "identifier": "cn.zhixin.ai.desktop",
+      "icon": [
+        "icons/icon.ico"
+      ],
+      "resources": [
+        "resources/runtime/**/*",
+        "resources/agent/**/*",
+        "resources/browsers/**/*",
+        "resources/adapter_ed25519_public.pem"
+      ],
+      "targets": []
+    },
+    "security": {
+      "csp": "default-src 'self' customprotocol: asset:; script-src 'self' 'unsafe-inline' ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data:; frame-src http://127.0.0.1:3001; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:3001"
+    },
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
+    },
+    "windows": [
+      {
+        "title": "智心AI Desktop",
+        "width": 1440,
+        "height": 900,
+        "resizable": true
+      }
+    ]
+  }
+}

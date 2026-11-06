@@ -1,0 +1,50 @@
+{
+  "name": "zengxing-ai",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/desktop",
+    "apps/web",
+    "packages/core"
+  ],
+  "scripts": {
+    "dev": "npm --prefix apps/web run dev",
+    "dev:services": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 up --detach postgres redis",
+    "docker:build": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 build api worker web",
+    "docker:build:backend": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 build api",
+    "docker:build:api": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 build api",
+    "docker:build:web": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 build web",
+    "docker:up": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 up --detach postgres redis api worker web",
+    "docker:down": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 down",
+    "docker:ps": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 ps",
+    "docker:restart": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 up --detach --force-recreate api worker web",
+    "dev:docker": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 up --detach --build postgres redis api worker web",
+    "dev:docker:alt-web": "powershell -NoProfile -Command \"$env:API_PORT='8001'; $env:WEB_PORT='3002'; & 'scripts/docker-compose.ps1' up --detach --build postgres redis api worker web\"",
+    "dev:services:down": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 down",
+    "dev:services:logs": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 logs -f postgres redis",
+    "dev:docker:logs": "powershell -ExecutionPolicy Bypass -File scripts/docker-compose.ps1 logs -f api worker web postgres redis",
+    "verify:docker": "powershell -ExecutionPolicy Bypass -File scripts/verify-docker.ps1",
+    "dev:api": "cd apps/api && python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "dev:worker": "cd apps/api && python -m app.worker_cli --schedule --schedule-interval 60",
+    "dev:schedule": "cd apps/api && python -m app.worker_cli --schedule --once",
+    "desktop": "node apps/desktop/src/agent.mjs",
+    "desktop:register": "node apps/desktop/src/agent.mjs register",
+    "desktop:auth": "node apps/desktop/src/agent.mjs auth",
+    "desktop:watch": "node apps/desktop/src/agent.mjs watch",
+    "desktop:run-once": "node apps/desktop/src/agent.mjs run-once",
+    "desktop:heartbeat": "node apps/desktop/src/agent.mjs heartbeat",
+    "desktop:cleanup-profiles": "node apps/desktop/src/agent.mjs cleanup-profiles",
+    "desktop:status": "node apps/desktop/src/agent.mjs status",
+    "desktop:check": "npm --prefix apps/desktop run check",
+    "build": "npm --prefix apps/web run build",
+    "typecheck": "npm --prefix apps/web run typecheck && npm --prefix packages/core run typecheck",
+    "check:mojibake": "node scripts/check-mojibake.cjs",
+    "test": "npm run check:mojibake && vitest run",
+    "lint": "npm run typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

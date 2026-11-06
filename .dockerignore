@@ -1,0 +1,56 @@
+# Dependencies and build outputs
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+coverage
+**/coverage
+target
+**/target
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Desktop agent (not part of Docker stack)
+apps/desktop
+apps/desktop/**
+
+# Local runtime / secrets / caches
+.git
+.devserver
+.codex-logs
+.codex-logs/**
+.tmp_refs
+.zhixin-ai
+.superpowers
+.pytest_cache
+**/__pycache__
+*.egg-info
+**/*.egg-info
+*.log
+**/*.log
+*.sqlite
+**/*.sqlite
+.env
+.env.*
+!.env.example
+apps/api/uploads
+apps/api/uploads/**
+uploads
+**/uploads
+
+# Research / analysis / backups (heavy, not needed in images)
+analysis
+analysis/**
+backups
+backups/**
+docs
+docs/**
+.platform-publish-research*.json
+
+# IDE / OS junk
+.vscode
+.idea
+**/.DS_Store
+**/Thumbs.db

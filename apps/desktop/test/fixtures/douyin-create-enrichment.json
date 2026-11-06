@@ -1,0 +1,11 @@
+{
+  "item": {
+    "common": {
+      "text_extra": "[{\"start\":87,\"end\":90,\"type\":1,\"hashtag_name\":\"监控\",\"hashtag_id\":1566067169787905,\"user_id\":\"\",\"caption_start\":61,\"caption_end\":64},{\"start\":92,\"end\":99,\"type\":1,\"hashtag_name\":\"广州同城弱电\",\"hashtag_id\":7642150817834732000,\"user_id\":\"\",\"caption_start\":66,\"caption_end\":73},{\"start\":101,\"end\":106,\"type\":1,\"hashtag_name\":\"弱电施工\",\"hashtag_id\":1606031220167709,\"user_id\":\"\",\"caption_start\":75,\"caption_end\":80},{\"start\":107,\"end\":112,\"type\":1,\"hashtag_name\":\"监控安装\",\"hashtag_id\":1636061413201927,\"user_id\":\"\",\"caption_start\":81,\"caption_end\":86},{\"start\":113,\"end\":116,\"type\":1,\"hashtag_name\":\"广州\",\"hashtag_id\":1568927144502274,\"user_id\":\"\",\"caption_start\":87,\"caption_end\":90}]",
+      "challenges": "[1566067169787905,7642150817834732000,1606031220167709,1636061413201927,1568927144502274]"
+    },
+    "chapter": {
+      "chapter": "{\"chapter_abstract\": \"监控布线需注意老楼楼道结构杂乱、高空放线安全、避免损坏墙体、核对点位与预留线路、线路排布与防护等细节，以确保监控系统稳定可靠，避免后期麻烦和安全隐患。\", \"chapter_details\": [{\"desc\": \"引言\", \"timestamp\": 0, \"detail\": \"\"}, {\"desc\": \"布线规划\", \"timestamp\": 11000, \"detail\": \"老楼楼道结构杂乱，布线需提前规划，避免乱拉。\"}, {\"desc\": \"高空放线安全\", \"timestamp\": 21000, \"detail\": \"高空放线需注意安全，师傅作业面朝外侧，预留线材余量。\"}, {\"desc\": \"避免损坏墙体\", \"timestamp\": 32000, \"detail\": \"避免损坏墙体，影响监控信号。\"}, {\"desc\": \"核对点位与预留线路\", \"timestamp\": 39000, \"detail\": \"施工前核对点位，预留备用线路。\"}, {\"desc\": \"线路排布与防护\", \"timestamp\": 47000, \"detail\": \"线路排布整齐，做好防护，确保画面稳定。\"}, {\"desc\": \"结语\", \"timestamp\": 55000, \"detail\": \"监控属于隐蔽工程，注意细节，避免返工。\"}], \"chapter_type\": 1}"
+    }
+  }
+}

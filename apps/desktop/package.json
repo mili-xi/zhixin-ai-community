@@ -1,0 +1,31 @@
+{
+  "name": "@zengxing/desktop-agent",
+  "version": "0.1.21",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/agent.mjs",
+    "register": "node src/agent.mjs register",
+    "auth": "node src/agent.mjs auth",
+    "watch": "node src/agent.mjs watch",
+    "run-once": "node src/agent.mjs run-once",
+    "heartbeat": "node src/agent.mjs heartbeat",
+    "cleanup-profiles": "node src/agent.mjs cleanup-profiles",
+    "status": "node src/agent.mjs status",
+    "tauri:dev": "tauri dev",
+    "prepare:tauri-resources": "node scripts/prepare-tauri-resources.mjs",
+    "tauri:build": "npm run prepare:tauri-resources && tauri build --bundles none",
+    "build:installer": "powershell -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1",
+    "build:adapter-bundle": "node scripts/create-adapter-bundle.mjs",
+    "publish:adapter-bundle": "powershell -ExecutionPolicy Bypass -File scripts/publish-adapter-bundle.ps1",
+    "test": "node --test test/*.test.mjs",
+    "install-browsers": "playwright install chromium",
+    "check": "node --check src/agent.mjs && node --check src/agent-core.mjs && node --check src/adapter-update-manager.mjs && node --check src/browser-visibility.mjs && node --check src/rich-content.mjs && node --check src/session-manager.mjs && node --check src/adapters/base.mjs && node --check src/adapters/index.mjs && node --check src/adapters/platform-api.mjs && node --check src/adapters/zhihu.mjs && node --check src/adapters/baijiahao.mjs && node --check src/adapters/sohu.mjs && node --check src/adapters/csdn.mjs && node --check src/adapters/jianshu.mjs && node --check src/adapters/netease.mjs && node --check src/adapters/penguin.mjs && node --check src/adapters/toutiao.mjs && node --check src/adapters/content-platform.mjs && node --check scripts/create-adapter-bundle.mjs && node --check scripts/create-adapter-bundle-from-live.mjs && npm run test"
+  },
+  "dependencies": {
+    "playwright": "^1.61.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.6.3"
+  }
+}

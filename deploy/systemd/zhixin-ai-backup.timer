@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Zhixin AI production backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=zhixin-ai-backup.service
+
+[Install]
+WantedBy=timers.target

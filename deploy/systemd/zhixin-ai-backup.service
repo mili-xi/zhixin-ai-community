@@ -1,0 +1,10 @@
+[Unit]
+Description=Zhixin AI production backup
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/zhixin-ai/scripts/production/backup.sh
+User=root
+Group=root
